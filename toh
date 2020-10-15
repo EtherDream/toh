@@ -42,9 +42,6 @@ function client(localPort, url, remotePort) {
       const req = reqMod.request(reqOpt)
       clientHandler(req, sock)
     })
-    .on('error', err => {
-      console.error('listen err:', err)
-    })
     .listen(+localPort, '127.0.0.1')
 }
 
@@ -72,9 +69,6 @@ function server(svcAddr) {
       res.writeHead(404)
       res.end()
     })
-    .on('error', err => {
-      console.error('listen err:', err)
-    })
     .on('upgrade', serverHandler)
     .listen(svcAddr)
 }
@@ -85,8 +79,6 @@ function serverHandler(req, clientSock) {
     console.warn('invalid port:', port)
     return clientSock.end()
   }
-  console.log('ws req:', req.url, req.headers)
-
   const serverSock = net.connect(port, () => {
     clientSock.write(
       'HTTP/1.1 101 Switching Protocols\r\n' +
