@@ -61,6 +61,7 @@ server {
 
 服务端:
 
+    rm -f /tmp/toh.sock
     ./toh -s /tmp/toh.sock
 
 客户端:

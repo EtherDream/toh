@@ -40,7 +40,7 @@ function client(localPort, url, remotePort) {
   net
     .createServer(sock => {
       const req = reqMod.request(reqOpt)
-      clientHandler(sock, req)
+      clientHandler(req, sock)
     })
     .on('error', err => {
       console.error('listen err:', err)
@@ -48,7 +48,7 @@ function client(localPort, url, remotePort) {
     .listen(+localPort, '127.0.0.1')
 }
 
-function clientHandler(clientSock, req) {
+function clientHandler(req, clientSock) {
   console.log('new conn')
 
   req.on('upgrade', (res, serverSock) => {
@@ -79,7 +79,7 @@ function server(svcAddr) {
     .listen(svcAddr)
 }
 
-function serverHandler(req, clientSock, head) {
+function serverHandler(req, clientSock) {
   const port = +req.headers['x-port']
   if (!port) {
     console.warn('invalid port:', port)
