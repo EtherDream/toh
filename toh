@@ -1,0 +1,113 @@
+#!/usr/bin/env node
+'use strict'
+const net = require('net')
+const http = require('http')
+const https = require('https')
+
+function usage() {
+  console.log(`\
+usage:
+  toh -s http-port
+  toh -c local-port url remote-port
+
+examples:
+  toh -s 8080
+  toh -c 10022 http://1.2.3.4:8080 22
+
+  toh -s /tmp/toh.sock
+  toh -c 10022 https://mysite.com/ssh-xxxx 22
+
+more:
+  https://github.com/EtherDream/toh`)
+}
+
+
+function client(localPort, url, remotePort) {
+  if (!remotePort) {
+    return usage()
+  }
+  const urlObj = new URL(url)
+  const reqMod = urlObj.protocol === 'http:' ? http : https
+  const reqOpt = {
+    host: urlObj.host,
+    path: urlObj.href.substr(urlObj.origin.length),
+    headers: {
+      'x-port': remotePort,
+      'connection': 'upgrade',
+      'upgrade': 'WebSocket',
+    }
+  }
+  net
+    .createServer(sock => {
+      const req = reqMod.request(reqOpt)
+      clientHandler(sock, req)
+    })
+    .on('error', err => {
+      console.error('listen err:', err)
+    })
+    .listen(+localPort, '127.0.0.1')
+}
+
+function clientHandler(clientSock, req) {
+  console.log('new conn')
+
+  req.on('upgrade', (res, serverSock) => {
+    serverSock.pipe(clientSock)
+    clientSock.pipe(serverSock)
+  })
+  req.on('response', res => {
+    console.error('invalid response:', res.statusCode, res.headers)
+    clientSock.end()
+  })
+  req.on('error', err => {
+    console.error('req onerror:', err)
+  })
+  req.end()
+}
+
+
+function server(svcAddr) {
+  http
+    .createServer((req, res) => {
+      res.writeHead(404)
+      res.end()
+    })
+    .on('error', err => {
+      console.error('listen err:', err)
+    })
+    .on('upgrade', serverHandler)
+    .listen(svcAddr)
+}
+
+function serverHandler(req, clientSock, head) {
+  const port = +req.headers['x-port']
+  if (!port) {
+    console.warn('invalid port:', port)
+    return clientSock.end()
+  }
+  console.log('ws req:', req.url, req.headers)
+
+  const serverSock = net.connect(port, () => {
+    clientSock.write(
+      'HTTP/1.1 101 Switching Protocols\r\n' +
+      'Connection: upgrade\r\n' +
+      'Upgrade: WebSocket\r\n' +
+      '\r\n')
+  })
+  serverSock.pipe(clientSock)
+  clientSock.pipe(serverSock)
+}
+
+
+function main(args) {
+  const type = args.shift()
+  if (type === '-c') {
+    client(...args)
+  } else if (type === '-s') {
+    server(...args)
+  } else {
+    usage()
+  }
+}
+
+main(process.argv.slice(2))
