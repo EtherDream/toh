@@ -49,6 +49,12 @@ function clientHandler(req, clientSock) {
   console.log('new conn')
 
   req.on('upgrade', (res, serverSock) => {
+    serverSock.on('error', err => {
+      console.log('server error:', err.message)
+    })
+    clientSock.on('error', err => {
+      console.log('client error:', err.message)
+    })
     serverSock.pipe(clientSock)
     clientSock.pipe(serverSock)
   })
