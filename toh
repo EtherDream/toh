@@ -94,6 +94,12 @@ function serverHandler(req, clientSock) {
   })
   serverSock.pipe(clientSock)
   clientSock.pipe(serverSock)
+  serverSock.on('error', err => {
+    console.log('server error:', err.message)
+  })
+  clientSock.on('error', err => {
+    console.log('client error:', err.message)
+  })
 }
 
 
