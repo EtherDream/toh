@@ -22,6 +22,18 @@ more:
 }
 
 
+function pipe(clientSock, serverSock) {
+  clientSock
+    .pipe(serverSock)
+    .on('error', err => {
+      console.error('upstream:', err.message)
+    })
+    .pipe(clientSock)
+    .on('error', err => {
+      console.error('downstream:', err.message)
+    })
+}
+
 function client(localPort, url, remotePort) {
   if (!remotePort) {
     return usage()
@@ -49,14 +61,7 @@ function clientHandler(req, clientSock) {
   console.log('new conn')
 
   req.on('upgrade', (res, serverSock) => {
-    serverSock.on('error', err => {
-      console.log('server error:', err.message)
-    })
-    clientSock.on('error', err => {
-      console.log('client error:', err.message)
-    })
-    serverSock.pipe(clientSock)
-    clientSock.pipe(serverSock)
+    pipe(clientSock, serverSock)
   })
   req.on('response', res => {
     console.error('invalid response:', res.statusCode, res.headers)
@@ -92,14 +97,7 @@ function serverHandler(req, clientSock) {
       'Upgrade: WebSocket\r\n' +
       '\r\n')
   })
-  serverSock.pipe(clientSock)
-  clientSock.pipe(serverSock)
-  serverSock.on('error', err => {
-    console.log('server error:', err.message)
-  })
-  clientSock.on('error', err => {
-    console.log('client error:', err.message)
-  })
+  pipe(clientSock, serverSock)
 }
 
 
