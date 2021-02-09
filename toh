@@ -38,11 +38,8 @@ function client(localPort, url, remotePort) {
   if (!remotePort) {
     return usage()
   }
-  const urlObj = new URL(url)
-  const reqMod = urlObj.protocol === 'http:' ? http : https
-  const reqOpt = {
-    host: urlObj.host,
-    path: urlObj.href.substr(urlObj.origin.length),
+  const mod = /^https:/.test(url) ? https : http
+  const opt = {
     headers: {
       'x-port': remotePort,
       'connection': 'upgrade',
@@ -51,7 +48,7 @@ function client(localPort, url, remotePort) {
   }
   net
     .createServer(sock => {
-      const req = reqMod.request(reqOpt)
+      const req = mod.request(url, opt)
       clientHandler(req, sock)
     })
     .listen(+localPort, '127.0.0.1')
@@ -59,18 +56,18 @@ function client(localPort, url, remotePort) {
 
 function clientHandler(req, clientSock) {
   console.log('new conn')
-
-  req.on('upgrade', (res, serverSock) => {
-    pipe(clientSock, serverSock)
-  })
-  req.on('response', res => {
-    console.error('invalid response:', res.statusCode, res.headers)
-    clientSock.end()
-  })
-  req.on('error', err => {
-    console.error('req onerror:', err)
-  })
-  req.end()
+  req
+    .on('upgrade', (res, serverSock) => {
+      pipe(clientSock, serverSock)
+    })
+    .on('response', res => {
+      console.error('invalid response:', res.statusCode, res.headers)
+      clientSock.end()
+    })
+    .on('error', err => {
+      console.error('request:', err.message)
+    })
+    .end()
 }
 
 
